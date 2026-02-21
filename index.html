@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CNC Speed &amp; Feed Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ================================================================
+       HEADER
+  ================================================================ -->
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="app-header__brand">
+        <svg class="app-header__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          <path d="M14.83 9.17a4 4 0 0 1 0 5.66"/>
+          <path d="M9.17 9.17a4 4 0 0 0 0 5.66"/>
+        </svg>
+        <div>
+          <h1 class="app-header__title">CNC Calculator</h1>
+          <p class="app-header__subtitle">Speed &amp; Feed &nbsp;·&nbsp; Tool Library</p>
+        </div>
+      </div>
+      <div class="unit-toggle" role="group" aria-label="Unit system">
+        <button class="unit-toggle__btn active" data-unit="imperial" aria-pressed="true">Imperial</button>
+        <button class="unit-toggle__btn" data-unit="metric" aria-pressed="false">Metric</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       TAB BAR
+  ================================================================ -->
+  <nav class="tab-bar" role="tablist" aria-label="Main navigation">
+    <button class="tab-btn active" role="tab" data-tab="calculator"
+            aria-selected="true" aria-controls="tab-calculator" id="tab-btn-calculator">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+      Calculator
+    </button>
+    <button class="tab-btn" role="tab" data-tab="library"
+            aria-selected="false" aria-controls="tab-library" id="tab-btn-library">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Tool Library
+      <span class="tab-badge" id="tool-count-badge" aria-label="tools in library">0</span>
+    </button>
+  </nav>
+
+  <!-- ================================================================
+       CALCULATOR TAB
+  ================================================================ -->
+  <main id="tab-calculator" role="tabpanel" aria-labelledby="tab-btn-calculator" class="tab-content active">
+    <div class="calculator-grid">
+
+      <!-- ---- LEFT: INPUTS ---- -->
+      <section class="card input-panel" aria-label="Calculator inputs">
+        <h2 class="panel-title">Parameters</h2>
+
+        <!-- Tool source toggle -->
+        <div class="form-group">
+          <label class="form-label">Tool Source</label>
+          <div class="source-toggle" role="group" aria-label="Tool source">
+            <button class="source-btn active" data-source="custom" aria-pressed="true">Custom Values</button>
+            <button class="source-btn" data-source="library" aria-pressed="false">From Library</button>
+          </div>
+        </div>
+
+        <!-- Library tool picker (shown when source = library) -->
+        <div class="form-group" id="library-picker" hidden>
+          <label class="form-label" for="tool-select">Select Tool</label>
+          <select class="form-select" id="tool-select">
+            <option value="">-- Choose a tool --</option>
+          </select>
+        </div>
+
+        <!-- Material -->
+        <div class="form-group">
+          <label class="form-label" for="material-select">Workpiece Material</label>
+          <select class="form-select" id="material-select">
+            <!-- Populated by js/ui.js -->
+          </select>
+        </div>
+
+        <div class="form-divider"><span>Tool Parameters</span></div>
+
+        <!-- Diameter -->
+        <div class="form-group">
+          <label class="form-label" for="input-diameter">
+            Tool Diameter
+            <span class="unit-label" id="lbl-diameter">in</span>
+          </label>
+          <input type="number" class="form-input" id="input-diameter"
+                 min="0.001" step="0.0625" placeholder="0.25"
+                 autocomplete="off">
+          <span class="form-hint" id="hint-diameter"></span>
+        </div>
+
+        <!-- Flutes -->
+        <div class="form-group">
+          <label class="form-label" for="input-flutes">Number of Flutes</label>
+          <input type="number" class="form-input" id="input-flutes"
+                 min="1" max="12" step="1" placeholder="2"
+                 autocomplete="off">
+        </div>
+
+        <!-- Tool material -->
+        <div class="form-group">
+          <label class="form-label" for="tool-material-select">Tool Material</label>
+          <select class="form-select" id="tool-material-select">
+            <option value="hss">HSS (High Speed Steel)</option>
+            <option value="carbide" selected>Carbide</option>
+            <option value="coated_carbide">Coated Carbide</option>
+          </select>
+        </div>
+
+        <div class="form-divider"><span>Cutting Parameters</span></div>
+
+        <!-- Surface speed -->
+        <div class="form-group">
+          <label class="form-label" for="input-surface-speed">
+            Surface Speed
+            <span class="unit-label" id="lbl-speed">SFM</span>
+          </label>
+          <input type="number" class="form-input" id="input-surface-speed"
+                 min="1" step="10" placeholder="600"
+                 autocomplete="off">
+          <span class="form-hint form-hint--range" id="hint-speed"></span>
+        </div>
+
+        <!-- Chip load -->
+        <div class="form-group">
+          <label class="form-label" for="input-chip-load">
+            Chip Load
+            <span class="unit-label" id="lbl-chipload">in/tooth</span>
+          </label>
+          <input type="number" class="form-input" id="input-chip-load"
+                 min="0.0001" step="0.0005" placeholder="0.003"
+                 autocomplete="off">
+          <span class="form-hint form-hint--range" id="hint-chipload"></span>
+        </div>
+
+        <button class="btn btn-secondary btn-block" id="btn-apply-presets">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Apply Suggested Presets
+        </button>
+      </section>
+
+      <!-- ---- RIGHT: OUTPUTS ---- -->
+      <aside class="output-panel" aria-label="Calculation results">
+        <h2 class="output-panel__title">Results</h2>
+
+        <div class="output-block">
+          <div class="output-label">Spindle Speed</div>
+          <div class="output-value-row">
+            <span class="output-value" id="output-rpm">--</span>
+            <span class="output-unit">RPM</span>
+          </div>
+        </div>
+
+        <div class="output-divider"></div>
+
+        <div class="output-block">
+          <div class="output-label">Feed Rate</div>
+          <div class="output-value-row">
+            <span class="output-value" id="output-feedrate">--</span>
+            <span class="output-unit" id="lbl-feedrate-unit">in/min</span>
+          </div>
+        </div>
+
+        <div class="output-divider"></div>
+
+        <div id="step-recommendations">
+          <div class="output-block">
+            <div class="output-label">Step Down <span class="output-label-sub">(depth / pass)</span></div>
+            <div class="output-value-row">
+              <span class="output-value output-value--sm" id="output-stepdown">--</span>
+              <span class="output-unit" id="lbl-step-unit">in</span>
+            </div>
+          </div>
+          <div class="output-divider"></div>
+          <div class="output-block">
+            <div class="output-label">Step Over <span class="output-label-sub">(width of cut)</span></div>
+            <div class="output-value-row">
+              <span class="output-value output-value--sm" id="output-stepover">--</span>
+              <span class="output-unit" id="lbl-stepover-unit">in</span>
+            </div>
+          </div>
+          <div class="output-divider"></div>
+        </div>
+
+        <!-- Preset range hints -->
+        <div class="preset-hint" id="preset-hint-card">
+          <div class="preset-hint__title">Suggested Range</div>
+          <div class="preset-hint__row">
+            <span>Surface Speed</span>
+            <span id="hint-speed-range" class="preset-hint__val">--</span>
+          </div>
+          <div class="preset-hint__row">
+            <span>Chip Load</span>
+            <span id="hint-chipload-range" class="preset-hint__val">--</span>
+          </div>
+        </div>
+
+        <div class="output-note">
+          Values are starting points — verify with test cuts.<br>
+          Conservative approach: reduce feed 20–30%.
+        </div>
+      </aside>
+
+    </div><!-- /.calculator-grid -->
+  </main>
+
+  <!-- ================================================================
+       TOOL LIBRARY TAB
+  ================================================================ -->
+  <main id="tab-library" role="tabpanel" aria-labelledby="tab-btn-library"
+        class="tab-content" hidden>
+
+    <!-- Filter + action bar -->
+    <div class="library-toolbar">
+      <div class="library-filters">
+        <div class="search-wrapper">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" class="form-input search-input" id="filter-search"
+                 placeholder="Search tools…" aria-label="Search tools">
+        </div>
+        <select class="form-select filter-select" id="filter-type" aria-label="Filter by type">
+          <option value="">All Types</option>
+          <option value="end_mill">End Mill</option>
+          <option value="v_bit">V-Bit</option>
+          <option value="drill">Drill</option>
+          <option value="router_bit">Router Bit</option>
+        </select>
+        <select class="form-select filter-select" id="filter-material" aria-label="Filter by tool material">
+          <option value="">All Materials</option>
+          <option value="hss">HSS</option>
+          <option value="carbide">Carbide</option>
+          <option value="coated_carbide">Coated Carbide</option>
+        </select>
+      </div>
+      <div class="library-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-export" title="Export library as JSON">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btn-import-trigger" title="Import tools from JSON">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+        </button>
+        <input type="file" accept=".json,application/json" id="import-file" hidden aria-hidden="true">
+        <button class="btn btn-primary" id="btn-add-tool">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Tool
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state" hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      <h3>No tools in your library</h3>
+      <p>Add your first tool to get started.</p>
+      <button class="btn btn-primary" id="btn-add-tool-empty">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Your First Tool
+      </button>
+    </div>
+
+    <!-- No filter results -->
+    <div class="empty-state" id="no-results-state" hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>No tools match your filters</h3>
+      <p>Try adjusting your search or filter criteria.</p>
+    </div>
+
+    <!-- Tool card grid -->
+    <div class="tool-grid" id="tool-grid" role="list">
+      <!-- Rendered by js/ui.js -->
+    </div>
+
+  </main>
+
+  <!-- ================================================================
+       ADD / EDIT TOOL MODAL
+  ================================================================ -->
+  <dialog id="tool-modal" aria-labelledby="modal-title" aria-modal="true">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-title">Add Tool</h3>
+      <button class="modal-close" id="modal-close" aria-label="Close dialog">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <form id="tool-form" novalidate autocomplete="off">
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="field-name">Tool Name <span class="required">*</span></label>
+            <input type="text" class="form-input" id="field-name" name="name" required
+                   placeholder='e.g. 1/4" 2-Flute Carbide EM'>
+            <span class="form-error" id="err-name" role="alert" hidden>Name is required.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-type">Type <span class="required">*</span></label>
+            <select class="form-select" id="field-type" name="type">
+              <option value="end_mill">End Mill</option>
+              <option value="v_bit">V-Bit / Engraving</option>
+              <option value="drill">Drill Bit</option>
+              <option value="router_bit">Router Bit</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic subtype field — injected by JS based on type selection -->
+        <div id="field-subtype-container"></div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="field-diameter">
+              Diameter <span class="required">*</span>
+              <span class="unit-label" id="modal-unit-label">in</span>
+            </label>
+            <input type="number" class="form-input" id="field-diameter" name="diameter"
+                   min="0.001" step="0.001" required placeholder="0.25">
+            <span class="form-error" id="err-diameter" role="alert" hidden>Enter a valid positive diameter.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-flutes">Flutes <span class="required">*</span></label>
+            <input type="number" class="form-input" id="field-flutes" name="flutes"
+                   min="1" max="24" step="1" required placeholder="2">
+            <span class="form-error" id="err-flutes" role="alert" hidden>Enter a valid flute count (1–24).</span>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="field-material">Tool Material <span class="required">*</span></label>
+            <select class="form-select" id="field-material" name="material">
+              <option value="hss">HSS (High Speed Steel)</option>
+              <option value="carbide" selected>Carbide</option>
+              <option value="coated_carbide">Coated Carbide</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-coating">Coating</label>
+            <select class="form-select" id="field-coating" name="coating">
+              <option value="uncoated" selected>Uncoated</option>
+              <option value="tin">TiN</option>
+              <option value="ticn">TiCN</option>
+              <option value="altin">AlTiN</option>
+              <option value="dlc">DLC</option>
+              <option value="zrn">ZrN</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="field-maxrpm">Max RPM</label>
+          <input type="number" class="form-input" id="field-maxrpm" name="maxRPM"
+                 min="0" step="500" placeholder="e.g. 24000">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="field-notes">Notes</label>
+          <textarea class="form-input form-textarea" id="field-notes" name="notes"
+                    rows="3" placeholder="Supplier, intended use, observations…"></textarea>
+        </div>
+
+      </form>
+    </div><!-- /.modal-body -->
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="modal-save">Save Tool</button>
+    </div>
+  </dialog>
+
+  <!-- ================================================================
+       SCRIPTS — loaded in dependency order
+  ================================================================ -->
+  <script src="js/data.js"></script>
+  <script src="js/toolLibrary.js"></script>
+  <script src="js/calculator.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
