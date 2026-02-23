@@ -115,6 +115,21 @@ const ToolLibrary = {
     const tools = DEFAULT_TOOLS.map(t => ({ ...t, id: generateId(), createdAt: now, updatedAt: now }));
     this._save(tools);
   },
+
+  // Migration: set coating to 'spektra' for any tool whose name contains '-K'
+  // Safe to run on every load — only touches tools that still have 'uncoated'.
+  migrateSpektraCoating() {
+    const tools = this.getAll();
+    let changed = false;
+    const updated = tools.map(t => {
+      if (t.coating === 'uncoated' && /\-K\b/.test(t.name)) {
+        changed = true;
+        return { ...t, coating: 'spektra', updatedAt: new Date().toISOString() };
+      }
+      return t;
+    });
+    if (changed) this._save(updated);
+  },
 };
 
 // -------------------------------------------------------------------
@@ -127,28 +142,28 @@ const DEFAULT_TOOLS = [
     name: 'Amana 46282-K — 1/16" Upcut Spiral',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.0625, diameterUnit: 'in', flutes: 4,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46282-K · O-Flute upcut spiral · 1" flute length · 2.185" OAL',
   },
   {
     name: 'Amana 46286-K — 1/8" Upcut Spiral',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.125, diameterUnit: 'in', flutes: 3,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46286-K · Upcut spiral · 1" flute length · 1.713" OAL',
   },
   {
     name: 'Amana 46202-K — 1/4" Downcut Flat',
     type: 'router_bit', subtype: 'downcut', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46202-K · Downcut spiral flat end · 0.75" flute length · 1.811" OAL',
   },
   {
     name: 'Amana 46476-K — 1/4" Downcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46476-K · Downcut ball nose · 1" flute length · 1.713" OAL',
   },
   {
@@ -162,7 +177,7 @@ const DEFAULT_TOOLS = [
     name: 'Amana 46034-K — 1/2" Compression',
     type: 'router_bit', subtype: 'compression', vBitAngle: null,
     diameter: 0.5, diameterUnit: 'in', flutes: 2,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46034-K · Compression spiral flat end · 1" flute length · 2.008" OAL',
   },
   {
@@ -197,7 +212,7 @@ const DEFAULT_TOOLS = [
     name: 'Amana 46294-K — 1/4" Upcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '46294-K · Upcut ball nose · 1.25" flute length · 2.067" OAL',
   },
   {
@@ -211,7 +226,7 @@ const DEFAULT_TOOLS = [
     name: 'Amana 48342-K — 1/4" Downcut Flat (Long)',
     type: 'router_bit', subtype: 'downcut', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
-    material: 'carbide', coating: 'uncoated', maxRPM: null,
+    material: 'carbide', coating: 'spektra', maxRPM: null,
     notes: '48342-K · Downcut spiral flat end · 2" flute length · 2.835" OAL (longer reach than 46202-K)',
   },
 ];
