@@ -120,79 +120,45 @@ function renderToolSelectOptions(selectEl, tools, currentId) {
 }
 
 // -------------------------------------------------------------------
-// Render a single tool card DOM element
+// Render a single tool as a table row
 // -------------------------------------------------------------------
-function renderToolCard(tool, unit) {
-  const article = document.createElement('article');
-  article.className = 'tool-card';
-  article.dataset.toolId = tool.id;
-  article.setAttribute('role', 'listitem');
+function renderToolRow(tool, unit) {
+  const tr = document.createElement('tr');
+  tr.className = 'tool-row';
+  tr.dataset.toolId = tool.id;
 
-  const badge      = formatToolTypeBadge(tool.type, tool.subtype);
-  const diameter   = formatDiameter(tool, unit);
-  const matLabel   = CNCData.toolMaterialLabels[tool.material] || tool.material;
-  const coatLabel  = CNCData.coatingLabels[tool.coating] || '';
-  const vAngleRow  = tool.type === 'v_bit' && tool.vBitAngle
-    ? `<div class="spec-row">
-         <span class="spec-label">Angle</span>
-         <span class="spec-value">${tool.vBitAngle}°</span>
-       </div>`
-    : '';
-  const rpmRow = tool.maxRPM
-    ? `<div class="spec-row">
-         <span class="spec-label">Max RPM</span>
-         <span class="spec-value">${Number(tool.maxRPM).toLocaleString()}</span>
-       </div>`
-    : '';
-  const coatRow = coatLabel && coatLabel !== 'Uncoated'
-    ? `<div class="spec-row">
-         <span class="spec-label">Coating</span>
-         <span class="spec-value">${escapeHtml(coatLabel)}</span>
-       </div>`
-    : '';
-  const notesBlock = tool.notes
-    ? `<p class="tool-card__notes">${escapeHtml(tool.notes)}</p>`
-    : '';
+  const badge    = formatToolTypeBadge(tool.type, tool.subtype);
+  const diameter = formatDiameter(tool, unit);
+  const matLabel = CNCData.toolMaterialLabels[tool.material] || tool.material;
 
-  article.innerHTML = `
-    <div class="tool-card__header">
-      <span class="tool-card__name">${escapeHtml(tool.name)}</span>
+  tr.innerHTML = `
+    <td class="col-name">
+      <span class="tbl-tool-name">${escapeHtml(tool.name)}</span>
+    </td>
+    <td class="col-type">
       <span class="tool-badge">${escapeHtml(badge)}</span>
-    </div>
-    <div class="tool-card__specs">
-      <div class="spec-row">
-        <span class="spec-label">Diameter</span>
-        <span class="spec-value">${escapeHtml(diameter)}</span>
+    </td>
+    <td class="col-dia">
+      <span class="tbl-mono">${escapeHtml(diameter)}</span>
+    </td>
+    <td class="col-flutes">
+      <span class="tbl-mono">${tool.flutes}</span>
+    </td>
+    <td class="col-mat">
+      <span class="tbl-secondary">${escapeHtml(matLabel)}</span>
+    </td>
+    <td class="col-notes">
+      <span class="tbl-notes">${escapeHtml(tool.notes || '')}</span>
+    </td>
+    <td class="col-actions">
+      <div class="tbl-actions">
+        <button class="btn btn-secondary btn-sm btn-use-tool" data-id="${tool.id}" title="Load into calculator">Use</button>
+        <button class="btn btn-secondary btn-sm btn-edit-tool" data-id="${tool.id}" title="Edit tool">Edit</button>
+        <button class="btn btn-danger btn-sm btn-delete-tool" data-id="${tool.id}" title="Delete tool">Delete</button>
       </div>
-      <div class="spec-row">
-        <span class="spec-label">Flutes</span>
-        <span class="spec-value">${tool.flutes}</span>
-      </div>
-      <div class="spec-row">
-        <span class="spec-label">Material</span>
-        <span class="spec-value">${escapeHtml(matLabel)}</span>
-      </div>
-      ${vAngleRow}
-      ${coatRow}
-      ${rpmRow}
-      ${notesBlock}
-    </div>
-    <div class="tool-card__actions">
-      <button class="btn btn-secondary btn-sm btn-use-tool" data-id="${tool.id}"
-              title="Load into calculator">
-        Use
-      </button>
-      <button class="btn btn-secondary btn-sm btn-edit-tool" data-id="${tool.id}"
-              title="Edit tool">
-        Edit
-      </button>
-      <button class="btn btn-danger btn-sm btn-delete-tool" data-id="${tool.id}"
-              title="Delete tool">
-        Delete
-      </button>
-    </div>`;
+    </td>`;
 
-  return article;
+  return tr;
 }
 
 // -------------------------------------------------------------------

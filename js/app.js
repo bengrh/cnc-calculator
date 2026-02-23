@@ -15,7 +15,7 @@ const AppState = {
     diameter:       0.25,
     flutes:         2,
     toolMaterial:   'carbide',
-    surfaceSpeed:   600,
+    rpm:            18000,   // PRIMARY input — user sets this directly
     chipLoad:       0.003,
     results:        null,
   },
@@ -34,12 +34,12 @@ const AppState = {
 function recalculate() {
   const { calc, unit } = AppState;
   calc.results = Calculator.calculate({
-    surfaceSpeed: calc.surfaceSpeed,
-    diameter:     calc.diameter,
-    flutes:       calc.flutes,
-    chipLoad:     calc.chipLoad,
+    rpm:         calc.rpm,
+    diameter:    calc.diameter,
+    flutes:      calc.flutes,
+    chipLoad:    calc.chipLoad,
     unit,
-    materialKey:  calc.materialKey,
+    materialKey: calc.materialKey,
   });
 }
 
@@ -51,24 +51,26 @@ function renderCalcOutputs() {
   const unit        = AppState.unit;
   const isMetric    = unit === 'metric';
 
-  // RPM
-  const rpmEl = document.getElementById('output-rpm');
-  rpmEl.textContent = results?.rpm != null
-    ? Math.round(results.rpm).toLocaleString()
-    : '--';
+  // RPM input — sync value from state (so unit toggle / preset apply stays in sync)
+  const rpmInput = document.getElementById('output-rpm');
+  if (rpmInput && document.activeElement !== rpmInput) {
+    rpmInput.value = AppState.calc.rpm ?? 18000;
+  }
 
-  // Feed rate
+  // Feed rate (big output number)
   const frEl   = document.getElementById('output-feedrate');
   const frUnit = document.getElementById('lbl-feedrate-unit');
   if (results?.feedRate != null) {
-    frEl.textContent   = results.feedRate.toFixed(1);
+    frEl.textContent   = isMetric
+      ? UnitConverter.inPerMinToMMPerMin(results.feedRate).toFixed(1)
+      : results.feedRate.toFixed(1);
     frUnit.textContent = isMetric ? 'mm/min' : 'in/min';
   } else {
     frEl.textContent   = '--';
     frUnit.textContent = isMetric ? 'mm/min' : 'in/min';
   }
 
-  // Step-down / step-over (show for all materials — recommendations always useful)
+  // Step-down / step-over
   const stepUnit = isMetric ? 'mm' : 'in';
   const dec      = isMetric ? 2 : 4;
 
@@ -78,8 +80,12 @@ function renderCalcOutputs() {
   const souEl = document.getElementById('lbl-stepover-unit');
 
   if (results?.stepDownMin != null) {
-    sdEl.textContent  = `${results.stepDownMin.toFixed(dec)} – ${results.stepDownMax.toFixed(dec)}`;
-    soEl.textContent  = `${results.stepOverMin.toFixed(dec)} – ${results.stepOverMax.toFixed(dec)}`;
+    const sdMin = isMetric ? UnitConverter.inchesToMM(results.stepDownMin) : results.stepDownMin;
+    const sdMax = isMetric ? UnitConverter.inchesToMM(results.stepDownMax) : results.stepDownMax;
+    const soMin = isMetric ? UnitConverter.inchesToMM(results.stepOverMin) : results.stepOverMin;
+    const soMax = isMetric ? UnitConverter.inchesToMM(results.stepOverMax) : results.stepOverMax;
+    sdEl.textContent  = `${sdMin.toFixed(dec)} – ${sdMax.toFixed(dec)}`;
+    soEl.textContent  = `${soMin.toFixed(dec)} – ${soMax.toFixed(dec)}`;
     if (suEl)  suEl.textContent  = stepUnit;
     if (souEl) souEl.textContent = stepUnit;
   } else {
@@ -97,9 +103,8 @@ function renderCalcOutputs() {
 function renderCalcLabels() {
   const isMetric = AppState.unit === 'metric';
   const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-  setText('lbl-diameter',  isMetric ? 'mm' : 'in');
-  setText('lbl-speed',     isMetric ? 'm/min' : 'SFM');
-  setText('lbl-chipload',  isMetric ? 'mm/tooth' : 'in/tooth');
+  setText('lbl-diameter', isMetric ? 'mm' : 'in');
+  setText('lbl-chipload', isMetric ? 'mm/tooth' : 'in/tooth');
   // modal unit label (if open)
   setText('modal-unit-label', isMetric ? 'mm' : 'in');
 }
@@ -111,10 +116,12 @@ function syncInputsFromState() {
   const { calc } = AppState;
   const isMetric = AppState.unit === 'metric';
 
-  setInputVal('input-diameter',    calc.diameter,     isMetric ? 4 : 4);
-  setInputVal('input-flutes',      calc.flutes,       0);
-  setInputVal('input-surface-speed', calc.surfaceSpeed, isMetric ? 2 : 1);
-  setInputVal('input-chip-load',   calc.chipLoad,     isMetric ? 4 : 5);
+  setInputVal('input-diameter',  calc.diameter,  4);
+  setInputVal('input-flutes',    calc.flutes,    0);
+  setInputVal('input-chip-load', calc.chipLoad,  isMetric ? 4 : 5);
+  // RPM input in output panel
+  const rpmEl = document.getElementById('output-rpm');
+  if (rpmEl) rpmEl.value = calc.rpm ?? 18000;
 
   const matSel = document.getElementById('material-select');
   if (matSel) matSel.value = calc.materialKey;
@@ -140,70 +147,104 @@ function updatePresetHints() {
   const diamIn   = UnitConverter.toInches(calc.diameter, unit);
   const presets  = getPresets(calc.materialKey, calc.toolMaterial, diamIn, unit);
 
-  const speedHint    = document.getElementById('hint-speed');
-  const chipHint     = document.getElementById('hint-chipload');
-  const hintCard     = document.getElementById('preset-hint-card');
-  const hintSpeedRng = document.getElementById('hint-speed-range');
-  const hintChipRng  = document.getElementById('hint-chipload-range');
+  const chipHint    = document.getElementById('hint-chipload');
+  const hintChipRng = document.getElementById('hint-chipload-range');
+  const hintCalcRpm = document.getElementById('hint-calc-rpm');
 
   if (presets) {
-    const speedDec = isMetric ? 1 : 0;
-    const chipDec  = isMetric ? 3 : 5;
-    const speedU   = isMetric ? 'm/min' : 'SFM';
-    const chipU    = isMetric ? 'mm/tooth' : 'in/tooth';
+    const chipDec = isMetric ? 3 : 5;
+    const chipU   = isMetric ? 'mm/tooth' : 'in/tooth';
 
-    if (speedHint) speedHint.textContent =
-      `Suggested: ${presets.surfaceSpeedMin.toFixed(speedDec)}–${presets.surfaceSpeedMax.toFixed(speedDec)} ${speedU}`;
     if (chipHint) chipHint.textContent =
       `Suggested: ${presets.chipLoadMin.toFixed(chipDec)}–${presets.chipLoadMax.toFixed(chipDec)} ${chipU}`;
-    if (hintSpeedRng) hintSpeedRng.textContent =
-      `${presets.surfaceSpeedMin.toFixed(speedDec)}–${presets.surfaceSpeedMax.toFixed(speedDec)} ${speedU}`;
+
     if (hintChipRng) hintChipRng.textContent =
       `${presets.chipLoadMin.toFixed(chipDec)}–${presets.chipLoadMax.toFixed(chipDec)} ${chipU}`;
+
+    if (hintCalcRpm && presets.suggestedRPMMin != null) {
+      hintCalcRpm.textContent =
+        `${presets.suggestedRPMMin.toLocaleString()}–${presets.suggestedRPMMax.toLocaleString()} RPM`;
+    } else if (hintCalcRpm) {
+      hintCalcRpm.textContent = '--';
+    }
+
   } else {
-    if (speedHint)    speedHint.textContent = '';
-    if (chipHint)     chipHint.textContent  = '';
-    if (hintSpeedRng) hintSpeedRng.textContent = '--';
-    if (hintChipRng)  hintChipRng.textContent  = '--';
+    if (chipHint)     chipHint.textContent    = '';
+    if (hintChipRng)  hintChipRng.textContent = '--';
+    if (hintCalcRpm)  hintCalcRpm.textContent = '--';
   }
 }
 
 // -------------------------------------------------------------------
-// Render the library tab grid
+// Render the library tab as a table
 // -------------------------------------------------------------------
 function renderLibraryTab() {
   const { filterType, filterMaterial, searchQuery } = AppState.library;
-  const allTools    = ToolLibrary.getAll();
-  const filtered    = ToolLibrary.filter({ type: filterType, material: filterMaterial, searchQuery });
-  const grid        = document.getElementById('tool-grid');
-  const emptyState  = document.getElementById('empty-state');
-  const noResults   = document.getElementById('no-results-state');
+  const allTools  = ToolLibrary.getAll();
+  const filtered  = ToolLibrary.filter({ type: filterType, material: filterMaterial, searchQuery });
+  const tbody     = document.getElementById('tool-tbody');
+  const noResults = document.getElementById('no-results-state');
 
   // Update tool count badge
   const badge = document.getElementById('tool-count-badge');
   if (badge) badge.textContent = allTools.length;
 
-  // Clear grid
-  grid.innerHTML = '';
-
-  if (allTools.length === 0) {
-    emptyState.hidden  = false;
-    noResults.hidden   = true;
-    return;
-  }
-
-  emptyState.hidden = true;
+  tbody.innerHTML = '';
 
   if (filtered.length === 0) {
-    noResults.hidden = false;
+    noResults.hidden = allTools.length === 0; // hide "no results" if library is just empty
     return;
   }
 
   noResults.hidden = true;
 
   filtered.forEach(tool => {
-    grid.appendChild(renderToolCard(tool, AppState.unit));
+    tbody.appendChild(renderToolRow(tool, AppState.unit));
   });
+}
+
+// -------------------------------------------------------------------
+// Handle inline add-tool row submission
+// -------------------------------------------------------------------
+function handleInlineAddTool() {
+  const name     = document.getElementById('new-name').value.trim();
+  const type     = document.getElementById('new-type').value;
+  const diamRaw  = parseFloat(document.getElementById('new-diameter').value);
+  const flutes   = parseInt(document.getElementById('new-flutes').value, 10);
+  const material = document.getElementById('new-material').value;
+  const notes    = document.getElementById('new-notes').value.trim();
+
+  if (!name) { showToast('Tool name is required', 'error'); document.getElementById('new-name').focus(); return; }
+  if (!diamRaw || diamRaw <= 0) { showToast('Enter a valid diameter', 'error'); document.getElementById('new-diameter').focus(); return; }
+  if (!flutes || flutes < 1)    { showToast('Enter a valid flute count', 'error'); document.getElementById('new-flutes').focus(); return; }
+
+  // Diameter always stored in inches
+  const diamIn = AppState.unit === 'metric' ? UnitConverter.mmToInches(diamRaw) : diamRaw;
+
+  // Default subtype per type
+  const defaultSubtype = { router_bit: 'upcut', end_mill: 'flat', v_bit: null, drill: null };
+
+  ToolLibrary.add({
+    name, type,
+    subtype:      defaultSubtype[type] ?? null,
+    vBitAngle:    null,
+    diameter:     diamIn,
+    diameterUnit: 'in',
+    flutes,
+    material,
+    coating:      'uncoated',
+    maxRPM:       null,
+    notes,
+  });
+
+  // Clear the add row
+  ['new-name','new-diameter','new-flutes','new-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+
+  refreshToolSelect();
+  renderLibraryTab();
+  showToast(`Added: ${name}`, 'success');
 }
 
 // -------------------------------------------------------------------
@@ -234,11 +275,10 @@ function handleLoadTool(toolId) {
     ? UnitConverter.inchesToMM(diamIn)
     : diamIn;
 
-  // Apply presets for current material
+  // Apply chip load preset for current material (RPM stays at user's value)
   const presets = getPresets(AppState.calc.materialKey, tool.material, diamIn, AppState.unit);
   if (presets) {
-    AppState.calc.surfaceSpeed = presets.surfaceSpeed;
-    AppState.calc.chipLoad     = presets.chipLoad;
+    AppState.calc.chipLoad = presets.chipLoad;
   }
 
   recalculate();
@@ -259,7 +299,7 @@ function handleUnitToggle(newUnit) {
   const oldUnit = AppState.unit;
   if (oldUnit === newUnit) return;
 
-  // Convert current calc state in-place
+  // Convert diameter and chip load in-place (RPM is unit-agnostic)
   UnitConverter.convertCalcState(AppState.calc, oldUnit, newUnit);
   AppState.unit = newUnit;
 
@@ -462,12 +502,12 @@ function savePreferences() {
   Preferences.save({
     unit: AppState.unit,
     lastCalc: {
-      materialKey:   AppState.calc.materialKey,
-      diameter:      AppState.calc.diameter,
-      flutes:        AppState.calc.flutes,
-      toolMaterial:  AppState.calc.toolMaterial,
-      surfaceSpeed:  AppState.calc.surfaceSpeed,
-      chipLoad:      AppState.calc.chipLoad,
+      materialKey:  AppState.calc.materialKey,
+      diameter:     AppState.calc.diameter,
+      flutes:       AppState.calc.flutes,
+      toolMaterial: AppState.calc.toolMaterial,
+      rpm:          AppState.calc.rpm,
+      chipLoad:     AppState.calc.chipLoad,
     },
   });
 }
@@ -479,12 +519,12 @@ function loadPreferences() {
   }
   if (prefs.lastCalc) {
     const c = prefs.lastCalc;
-    if (c.materialKey)  AppState.calc.materialKey  = c.materialKey;
-    if (c.diameter)     AppState.calc.diameter      = c.diameter;
-    if (c.flutes)       AppState.calc.flutes        = c.flutes;
-    if (c.toolMaterial) AppState.calc.toolMaterial  = c.toolMaterial;
-    if (c.surfaceSpeed) AppState.calc.surfaceSpeed  = c.surfaceSpeed;
-    if (c.chipLoad)     AppState.calc.chipLoad      = c.chipLoad;
+    if (c.materialKey)  AppState.calc.materialKey = c.materialKey;
+    if (c.diameter)     AppState.calc.diameter     = c.diameter;
+    if (c.flutes)       AppState.calc.flutes       = c.flutes;
+    if (c.toolMaterial) AppState.calc.toolMaterial = c.toolMaterial;
+    if (c.rpm)          AppState.calc.rpm          = c.rpm;
+    if (c.chipLoad)     AppState.calc.chipLoad     = c.chipLoad;
   }
 }
 
@@ -493,7 +533,8 @@ function loadPreferences() {
 // -------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
 
-  // 1. Load preferences
+  // 1. Seed default tools on first ever load, then load preferences
+  ToolLibrary.seedIfEmpty();
   loadPreferences();
 
   // 2. Render material select
@@ -565,9 +606,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id) handleLoadTool(id);
   });
 
-  // --- Calculator form: all inputs (delegated) ---
+  // --- RPM input (in output panel) ---
+  document.getElementById('output-rpm').addEventListener('input', e => {
+    const val = parseFloat(e.target.value);
+    AppState.calc.rpm = val > 0 ? val : 18000;
+    recalculate();
+    renderCalcOutputs();
+    savePreferences();
+  });
+
+  // --- Calculator form inputs ---
   const calcInputIds = [
-    'input-diameter', 'input-flutes', 'input-surface-speed', 'input-chip-load',
+    'input-diameter', 'input-flutes', 'input-chip-load',
     'material-select', 'tool-material-select',
   ];
 
@@ -577,12 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('input', () => {
       const val = el.type === 'number' ? parseFloat(el.value) : el.value;
 
-      if (id === 'input-diameter')       AppState.calc.diameter      = val || 0;
-      else if (id === 'input-flutes')    AppState.calc.flutes        = val || 0;
-      else if (id === 'input-surface-speed') AppState.calc.surfaceSpeed = val || 0;
-      else if (id === 'input-chip-load') AppState.calc.chipLoad      = val || 0;
-      else if (id === 'material-select') AppState.calc.materialKey   = val;
-      else if (id === 'tool-material-select') AppState.calc.toolMaterial = val;
+      if      (id === 'input-diameter')        AppState.calc.diameter     = val || 0;
+      else if (id === 'input-flutes')          AppState.calc.flutes       = val || 0;
+      else if (id === 'input-chip-load')       AppState.calc.chipLoad     = val || 0;
+      else if (id === 'material-select')       AppState.calc.materialKey  = val;
+      else if (id === 'tool-material-select')  AppState.calc.toolMaterial = val;
 
       recalculate();
       renderCalcOutputs();
@@ -590,13 +639,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- Apply Presets button ---
+  // --- Apply Presets button — sets chip load; also suggests RPM if user wants ---
   document.getElementById('btn-apply-presets').addEventListener('click', () => {
     const diamIn  = UnitConverter.toInches(AppState.calc.diameter, AppState.unit);
     const presets = getPresets(AppState.calc.materialKey, AppState.calc.toolMaterial, diamIn, AppState.unit);
     if (presets) {
-      AppState.calc.surfaceSpeed = presets.surfaceSpeed;
-      AppState.calc.chipLoad     = presets.chipLoad;
+      AppState.calc.chipLoad = presets.chipLoad;
+      // Optionally apply suggested RPM too
+      if (presets.suggestedRPM) {
+        AppState.calc.rpm = presets.suggestedRPM;
+      }
       syncInputsFromState();
       recalculate();
       renderCalcOutputs();
@@ -621,12 +673,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLibraryTab();
   });
 
-  // --- Library: Add tool button ---
-  document.getElementById('btn-add-tool').addEventListener('click', openAddModal);
-  document.getElementById('btn-add-tool-empty').addEventListener('click', openAddModal);
+  // --- Library: inline Add tool row ---
+  document.getElementById('btn-add-tool-inline').addEventListener('click', handleInlineAddTool);
 
-  // --- Library: tool card actions (delegated click on grid) ---
-  document.getElementById('tool-grid').addEventListener('click', e => {
+  // --- Library: Enter key on add row inputs submits the row ---
+  document.getElementById('add-tool-row').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleInlineAddTool();
+  });
+
+  // --- Library: tool row actions (delegated click on tbody) ---
+  document.getElementById('tool-tbody').addEventListener('click', e => {
     const useBtn    = e.target.closest('.btn-use-tool');
     const editBtn   = e.target.closest('.btn-edit-tool');
     const deleteBtn = e.target.closest('.btn-delete-tool');
@@ -645,6 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Keep modal Add Tool button working for detailed edits
+  document.getElementById('btn-add-tool') && document.getElementById('btn-add-tool').addEventListener('click', openAddModal);
 
   // --- Export / Import ---
   document.getElementById('btn-export').addEventListener('click', handleExport);
