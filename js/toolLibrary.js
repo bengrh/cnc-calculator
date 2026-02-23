@@ -116,6 +116,35 @@ const ToolLibrary = {
     this._save(tools);
   },
 
+  // Migration: update notes for any existing tool whose name matches a DEFAULT_TOOLS entry,
+  // but whose notes don't yet start with "Amana Tool" (i.e. have the old short-form notes).
+  migrateToolNotes() {
+    const tools = this.getAll();
+    let changed = false;
+    // Build a lookup: tool name prefix → notes from DEFAULT_TOOLS
+    const notesMap = {};
+    DEFAULT_TOOLS.forEach(t => {
+      // Key off the model number portion (e.g. "46282-K") extracted from the name
+      const match = t.name.match(/Amana\s+([\w\-]+)/);
+      if (match) notesMap[match[1].toUpperCase()] = t.notes;
+    });
+
+    const updated = tools.map(t => {
+      // Skip if notes are already in the new "Amana Tool …" format
+      if (t.notes && t.notes.startsWith('Amana Tool')) return t;
+      // Find matching model number in this tool's name
+      const match = t.name.match(/Amana\s+([\w\-]+)/);
+      if (!match) return t;
+      const key = match[1].toUpperCase();
+      if (notesMap[key]) {
+        changed = true;
+        return { ...t, notes: notesMap[key], updatedAt: new Date().toISOString() };
+      }
+      return t;
+    });
+    if (changed) this._save(updated);
+  },
+
   // Migration: set coating to 'spektra' for any tool whose name contains '-K'
   // Safe to run on every load — only touches tools that still have 'uncoated'.
   migrateSpektraCoating() {
@@ -143,90 +172,90 @@ const DEFAULT_TOOLS = [
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.0625, diameterUnit: 'in', flutes: 4,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46282-K · O-Flute upcut spiral · 1" flute length · 2.185" OAL',
+    notes: 'Amana Tool 46282-K CNC Spektra Extreme Tool Life Coated SC 2D and 3D Carving 5.4 Deg Tapered Angle Ball Nose x 1/16 D x 1/32 R x 1 CH x 1/4 SHK x 3 Inch Long x 4 Flute Router Bit',
   },
   {
     name: 'Amana 46286-K — 1/8" Upcut Spiral',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.125, diameterUnit: 'in', flutes: 3,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46286-K · Upcut spiral · 1" flute length · 1.713" OAL',
+    notes: 'Amana Tool 46286-K CNC Spektra Extreme Tool Life Coated SC 2D and 3D Carving 3.6 Deg Tapered Angle Ball Nose x 1/8 D x 1/16 R x 1 CH x 1/4 SHK x 3 Inch Long x 3 Flute Router Bit',
   },
   {
     name: 'Amana 46202-K — 1/4" Downcut Flat',
     type: 'router_bit', subtype: 'downcut', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46202-K · Downcut spiral flat end · 0.75" flute length · 1.811" OAL',
+    notes: 'Amana Tool 46202-K SC Spektra Extreme Tool Life Coated Spiral Plunge 1/4 Dia x 3/4 CH x 1/4 SHK 2-1/2 Inch Long Down-Cut Router Bit',
   },
   {
     name: 'Amana 46476-K — 1/4" Downcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46476-K · Downcut ball nose · 1" flute length · 1.713" OAL',
+    notes: 'Amana Tool 46476-K SC Spektra Extreme Tool Life Coated Down-Cut Ball Nose Spiral 1/8 R x 1/4 D x 1 CH x 1/4 SHK x 2-1/2 Inch Long Router Bit',
   },
   {
     name: 'Amana 46477 — 1/2" Downcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.5, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: '46477 · Downcut ball nose · 1.25" flute length · 1.929" OAL',
+    notes: 'Amana Tool 46477 Solid Carbide Double Flute Down-Cut Ball Nose Spiral 1/4 R x 1/2 D x 1-1/4 CH x 1/2 SHK x 3 Inch Long Router Bit',
   },
   {
     name: 'Amana 46034-K — 1/2" Compression',
     type: 'router_bit', subtype: 'compression', vBitAngle: null,
     diameter: 0.5, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46034-K · Compression spiral flat end · 1" flute length · 2.008" OAL',
+    notes: 'Amana Tool 46034-K CNC SC Spektra Extreme Tool Life Coated Mortise Compression Spiral 1/2 D x 1 CH 1/2 SHK 3 Inch Long 2 Flute Router Bit',
   },
   {
     name: 'Amana 46226 — 1/2" Upcut Rougher',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.5, diameterUnit: 'in', flutes: 3,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: '46226 · Upcut spiral roughing end mill · 2" flute length · 3.346" OAL',
+    notes: 'Amana Tool 46226 Solid Carbide Roughing Spiral 3 Flute Chipbreaker 1/2 D x 2 CH x 1/2 SHK x 4 Inch Long Down-Cut Router Bit',
   },
   {
     name: 'Amana 46387 — 3/4" Upcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.75, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: '46387 · Upcut ball nose · 2.5" flute length · 3.819" OAL',
+    notes: 'Amana Tool 46387 Solid Carbide Double Flute Up-Cut Ball Nose Spiral 3/8 R x 3/4 D x 2-1/2 CH x 3/4 SHK x 5 Inch Long Router Bit',
   },
   {
     name: 'Amana 45944 — (verify specs)',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: '45944 · Not present in VKB file — verify specs at amanatool.com and update this entry',
+    notes: 'Amana Tool 45944 Carbide Tipped Core Box 5/8 R x 1-1/4 D x 1-1/4 CH x 1/2 Inch SHK Extra Deep Router Bit',
   },
   {
     name: 'Amana 46360 — 1/2" Compression (Long)',
     type: 'router_bit', subtype: 'compression', vBitAngle: null,
     diameter: 0.5, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: '46360 · Compression spiral flat end · 2.126" flute length · 3.386" OAL (longer reach than 46034-K)',
+    notes: 'Amana Tool 46360 CNC SC Mortise Compression Spiral 1/2 D x 2-1/8 CH x 1/2 SHK x 4 Inch Long 2 Flute Router Bit',
   },
   {
     name: 'Amana 46294-K — 1/4" Upcut Ball',
     type: 'end_mill', subtype: 'ball', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '46294-K · Upcut ball nose · 1.25" flute length · 2.067" OAL',
+    notes: 'Amana Tool 46294-K CNC Spektra Extreme Tool Life Coated SC 2D and 3D Carving 0.10 Deg Straight Angle Ball Nose x 1/4 D x 1/8 R x 1-1/2 CH x 1/4 SHK x 3 Inch Long x 2 Flute Router Bit',
   },
   {
     name: 'Amana RC-2255 — 2" Fly Cutter',
     type: 'router_bit', subtype: 'upcut', vBitAngle: null,
     diameter: 2.0, diameterUnit: 'in', flutes: 3,
     material: 'carbide', coating: 'uncoated', maxRPM: null,
-    notes: 'RC-2255 · Fly cutter / surfacing insert bit · 3-insert · 2" cutting dia · 0.25" depth capacity',
+    notes: 'Amana Tool RC-2255 CNC Spoilboard Insert Carbide 3 Wing, Surfacing, Planing, Flycutting & Slab Leveler 2-1/2 Diameter x 1/2 SHK Router Bit',
   },
   {
     name: 'Amana 48342-K — 1/4" Downcut Flat (Long)',
     type: 'router_bit', subtype: 'downcut', vBitAngle: null,
     diameter: 0.25, diameterUnit: 'in', flutes: 2,
     material: 'carbide', coating: 'spektra', maxRPM: null,
-    notes: '48342-K · Downcut spiral flat end · 2" flute length · 2.835" OAL (longer reach than 46202-K)',
+    notes: 'Amana Tool 48342-K SC Spektra Extreme Tool Life Coated Spiral Plunge 1/4 Dia x 2 CH x 1/4 SHK x 4 Inch Long Down-Cut Router Bit',
   },
 ];

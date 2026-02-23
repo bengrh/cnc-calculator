@@ -577,6 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Seed + migrate + load preferences
   ToolLibrary.seedIfEmpty();
   ToolLibrary.migrateSpektraCoating();
+  ToolLibrary.migrateToolNotes();
   loadPreferences();
 
   // 2. Render material select
