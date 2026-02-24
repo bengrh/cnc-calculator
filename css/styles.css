@@ -1048,6 +1048,7 @@ svg { display: block; flex-shrink: 0; }
 }
 
 /* Column widths */
+.col-diagram { width: 68px; min-width: 68px; padding: 6px 8px !important; }
 .col-name    { min-width: 200px; width: 28%; }
 .col-type    { min-width: 110px; width: 13%; }
 .col-dia     { min-width: 100px; width: 12%; }
@@ -1055,6 +1056,34 @@ svg { display: block; flex-shrink: 0; }
 .col-mat     { min-width: 110px; width: 12%; }
 .col-notes   { min-width: 160px; width: 100%; }
 .col-actions { min-width: 180px; width: 1%;  white-space: nowrap; }
+
+/* ---- Bit Profile Diagrams ---- */
+.bit-diagram {
+  display: block;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+/* Shank / body */
+.bd-shank     { fill: rgba(100,130,180,0.18); stroke: rgba(100,150,220,0.5); stroke-width: 1; }
+/* Cutting portion */
+.bd-flute     { fill: rgba(0,212,255,0.15);   stroke: var(--accent);         stroke-width: 1.2; }
+/* Tip shapes */
+.bd-tip-flat  { fill: rgba(0,212,255,0.25);   stroke: var(--accent);         stroke-width: 1.2; }
+.bd-tip-ball  { fill: rgba(0,212,255,0.15);   stroke: var(--accent);         stroke-width: 1.2; }
+/* Spiral helix lines */
+.bd-helix     { fill: none; stroke: rgba(0,212,255,0.45); stroke-width: 0.8; stroke-linecap: round; }
+/* Compression divider line */
+.bd-divider   { stroke: rgba(255,200,80,0.7); stroke-width: 1; stroke-dasharray: 2 2; }
+/* V-bit chamfer fill */
+.bd-vfill     { fill: rgba(168,85,247,0.15);  stroke: var(--accent2);        stroke-width: 1.2; }
+/* Drill tip fill */
+.bd-drill-tip { fill: rgba(16,217,160,0.2);   stroke: var(--success);        stroke-width: 1.2; }
+/* Drill body */
+.bd-drill     { fill: rgba(16,217,160,0.1);   stroke: var(--success);        stroke-width: 1; }
+/* Rougher serration */
+.bd-serration { fill: none; stroke: rgba(0,212,255,0.6); stroke-width: 0.8; }
 
 .tool-table thead th.col-flutes { text-align: center; }
 

@@ -17,12 +17,23 @@
   <header class="app-header">
     <div class="app-header__inner">
       <div class="app-header__brand">
-        <svg class="app-header__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-          <path d="M4.93 4.93a10 10 0 0 0 0 14.14"/>
-          <path d="M14.83 9.17a4 4 0 0 1 0 5.66"/>
-          <path d="M9.17 9.17a4 4 0 0 0 0 5.66"/>
+        <svg class="app-header__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <!-- calculator body -->
+          <rect x="4" y="2" width="16" height="20" rx="2"/>
+          <!-- display -->
+          <rect x="6.5" y="4.5" width="11" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.25"/>
+          <line x1="14" y1="6.5" x2="16" y2="6.5" stroke-width="1.5"/>
+          <!-- top row buttons -->
+          <rect x="6.5" y="11" width="2.5" height="2" rx="0.5"/>
+          <rect x="10.75" y="11" width="2.5" height="2" rx="0.5"/>
+          <rect x="15" y="11" width="2.5" height="2" rx="0.5"/>
+          <!-- middle row buttons -->
+          <rect x="6.5" y="14.5" width="2.5" height="2" rx="0.5"/>
+          <rect x="10.75" y="14.5" width="2.5" height="2" rx="0.5"/>
+          <rect x="15" y="14.5" width="2.5" height="2" rx="0.5"/>
+          <!-- bottom row: wide + button -->
+          <rect x="6.5" y="18" width="2.5" height="2" rx="0.5"/>
+          <rect x="10.75" y="18" width="6.75" height="2" rx="0.5"/>
         </svg>
         <div>
           <h1 class="app-header__title">CNC Calculator</h1>
@@ -338,6 +349,7 @@
       <table class="tool-table" id="tool-table" aria-label="Tool library">
         <thead>
           <tr>
+            <th class="col-diagram"></th>
             <th class="col-name">Name</th>
             <th class="col-type">Type</th>
             <th class="col-dia">Diameter</th>
@@ -352,6 +364,7 @@
         </tbody>
         <tfoot>
           <tr id="add-tool-row" class="add-tool-row">
+            <td class="col-diagram"></td>
             <td class="col-name">
               <input type="text" class="tbl-input" id="new-name" placeholder='e.g. 1/4" Upcut Spiral' autocomplete="off">
             </td>

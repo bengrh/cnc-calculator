@@ -14,6 +14,167 @@ function escapeHtml(str) {
 }
 
 // -------------------------------------------------------------------
+// Bit Profile SVG Diagrams
+// Each returns an inline SVG string showing a side-profile of the bit.
+// Coordinate system: 0,0 = top-left of 52×52 viewBox.
+// The bit runs top (shank) → bottom (tip), centred at x=26.
+// -------------------------------------------------------------------
+function renderBitDiagram(type, subtype) {
+  // Shared dimensions
+  const W = 52, H = 52;
+  const cx = 26;            // centre x
+  const sw = 10;            // half-shank width (shank = 20px wide)
+  const fw = 13;            // half-flute width (flute zone = 26px wide)
+  const shankH = 12;        // shank section height
+  const fluteH = 28;        // flute zone height
+  const shankY = 2;         // shank top y
+  const fluteY = shankY + shankH; // flute top y
+  const tipY   = fluteY + fluteH; // tip bottom y
+
+  // Helper: helix lines for upcut (lines angling ↗ = chip moves up)
+  const helixUp = (x1, x2, yTop, yBot, steps = 4) => {
+    let d = '';
+    const step = (yBot - yTop) / steps;
+    for (let i = 0; i < steps; i++) {
+      const y0 = yTop + i * step;
+      const y1 = y0 + step * 0.85;
+      // Upcut: lines angle from bottom-left to top-right
+      d += `<path class="bd-helix" d="M${x1} ${y1} Q${cx} ${(y0+y1)/2 - 3} ${x2} ${y0}"/>`;
+    }
+    return d;
+  };
+
+  // Helper: helix lines for downcut (lines angling ↘ = chip moves down)
+  const helixDown = (x1, x2, yTop, yBot, steps = 4) => {
+    let d = '';
+    const step = (yBot - yTop) / steps;
+    for (let i = 0; i < steps; i++) {
+      const y0 = yTop + i * step;
+      const y1 = y0 + step * 0.85;
+      // Downcut: lines angle from top-left to bottom-right
+      d += `<path class="bd-helix" d="M${x1} ${y0} Q${cx} ${(y0+y1)/2 + 3} ${x2} ${y1}"/>`;
+    }
+    return d;
+  };
+
+  // Helper: serration bumps along an edge (rougher)
+  const serrations = (x, yTop, yBot, side = 'left') => {
+    const count = 6;
+    const step  = (yBot - yTop) / count;
+    const amp   = side === 'left' ? -3 : 3;
+    let d = '';
+    for (let i = 0; i < count; i++) {
+      const y = yTop + i * step + step / 2;
+      d += `<line class="bd-serration" x1="${x}" y1="${y - step/3}" x2="${x + amp}" y2="${y}"/>`;
+      d += `<line class="bd-serration" x1="${x + amp}" y1="${y}" x2="${x}" y2="${y + step/3}"/>`;
+    }
+    return d;
+  };
+
+  const open  = `<svg class="bit-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" aria-hidden="true">`;
+  const close = `</svg>`;
+
+  // ── Shank block (common to all) ──────────────────────────────────
+  const shankRect = `<rect class="bd-shank" x="${cx - sw}" y="${shankY}" width="${sw*2}" height="${shankH}" rx="1.5"/>`;
+
+  // ── Collet taper line ────────────────────────────────────────────
+  // Small taper from shank width to flute width
+  const taperLeft  = `<polygon class="bd-shank" points="${cx-sw},${fluteY - 1} ${cx-fw},${fluteY + 3} ${cx-fw},${fluteY - 1}"/>`;
+  const taperRight = `<polygon class="bd-shank" points="${cx+sw},${fluteY - 1} ${cx+fw},${fluteY + 3} ${cx+fw},${fluteY - 1}"/>`;
+
+  // ── Flute body rectangle ─────────────────────────────────────────
+  const fluteRect = `<rect class="bd-flute" x="${cx - fw}" y="${fluteY}" width="${fw*2}" height="${fluteH}" rx="1"/>`;
+
+  // ─────────────────────────────────────────────────────────────────
+  // Per-type / subtype assembly
+  // ─────────────────────────────────────────────────────────────────
+
+  // UPCUT SPIRAL ROUTER BIT
+  if ((type === 'router_bit' && subtype === 'upcut') || (type === 'end_mill' && subtype === 'flat')) {
+    const flatTip = `<rect class="bd-tip-flat" x="${cx-fw}" y="${tipY}" width="${fw*2}" height="3" rx="0"/>`;
+    const helices = helixUp(cx - fw + 2, cx + fw - 2, fluteY + 2, tipY - 2);
+    return open + shankRect + taperLeft + taperRight + fluteRect + helices + flatTip + close;
+  }
+
+  // DOWNCUT SPIRAL ROUTER BIT
+  if (type === 'router_bit' && subtype === 'downcut') {
+    const flatTip = `<rect class="bd-tip-flat" x="${cx-fw}" y="${tipY}" width="${fw*2}" height="3" rx="0"/>`;
+    const helices = helixDown(cx - fw + 2, cx + fw - 2, fluteY + 2, tipY - 2);
+    return open + shankRect + taperLeft + taperRight + fluteRect + helices + flatTip + close;
+  }
+
+  // COMPRESSION SPIRAL
+  if (type === 'router_bit' && subtype === 'compression') {
+    const midY   = fluteY + fluteH / 2;
+    const divider = `<line class="bd-divider" x1="${cx - fw}" y1="${midY}" x2="${cx + fw}" y2="${midY}"/>`;
+    // Bottom half: upcut helices; top half: downcut helices
+    const helicesDown = helixDown(cx - fw + 2, cx + fw - 2, fluteY + 2, midY - 1, 2);
+    const helicesUp   = helixUp(cx - fw + 2, cx + fw - 2, midY + 1, tipY - 2, 2);
+    const flatTip = `<rect class="bd-tip-flat" x="${cx-fw}" y="${tipY}" width="${fw*2}" height="3" rx="0"/>`;
+    return open + shankRect + taperLeft + taperRight + fluteRect + helicesDown + helicesUp + divider + flatTip + close;
+  }
+
+  // BALL NOSE (end_mill or router_bit ball)
+  if (subtype === 'ball') {
+    const r    = fw;
+    const ballY = tipY - r;
+    // Rectangular flute body ending before the ball
+    const fluteShort = `<rect class="bd-flute" x="${cx-fw}" y="${fluteY}" width="${fw*2}" height="${fluteH - r}" rx="1"/>`;
+    // Semicircle tip
+    const ball = `<path class="bd-tip-ball" d="M${cx-fw} ${ballY} A${r} ${r} 0 0 0 ${cx+fw} ${ballY}"/>`;
+    const helices = (type === 'end_mill')
+      ? helixUp(cx - fw + 2, cx + fw - 2, fluteY + 2, ballY - 2)
+      : helixDown(cx - fw + 2, cx + fw - 2, fluteY + 2, ballY - 2);
+    return open + shankRect + taperLeft + taperRight + fluteShort + helices + ball + close;
+  }
+
+  // BULL NOSE
+  if (subtype === 'bull_nose') {
+    const cr   = 4; // corner radius
+    const flatTip = `
+      <path class="bd-tip-flat"
+        d="M${cx-fw} ${tipY - cr} Q${cx-fw} ${tipY+2} ${cx-fw+cr} ${tipY+2}
+           L${cx+fw-cr} ${tipY+2} Q${cx+fw} ${tipY+2} ${cx+fw} ${tipY - cr}
+           L${cx+fw} ${tipY} L${cx-fw} ${tipY} Z"/>`;
+    const helices = helixUp(cx - fw + 2, cx + fw - 2, fluteY + 2, tipY - 3);
+    return open + shankRect + taperLeft + taperRight + fluteRect + helices + flatTip + close;
+  }
+
+  // V-BIT
+  if (type === 'v_bit') {
+    // V-shaped taper from full flute width to a point at bottom
+    const vBody = `<polygon class="bd-vfill"
+      points="${cx-fw},${fluteY} ${cx+fw},${fluteY} ${cx},${tipY+4}"/>`;
+    // Shank still rectangular, but flute is v-shaped (no taper blocks)
+    const shankOnly = `<rect class="bd-shank" x="${cx-sw}" y="${shankY}" width="${sw*2}" height="${shankH + 4}" rx="1.5"/>`;
+    // Light helix lines on V flanks
+    const vHelixL = `<line class="bd-helix" x1="${cx-fw+2}" y1="${fluteY+4}" x2="${cx-3}" y2="${tipY}"/>`;
+    const vHelixR = `<line class="bd-helix" x1="${cx+fw-2}" y1="${fluteY+4}" x2="${cx+3}" y2="${tipY}"/>`;
+    return open + shankOnly + vBody + vHelixL + vHelixR + close;
+  }
+
+  // DRILL BIT
+  if (type === 'drill') {
+    const drillBody = `<rect class="bd-drill" x="${cx-sw}" y="${fluteY}" width="${sw*2}" height="${fluteH - 6}" rx="1"/>`;
+    // Pointed tip: triangle
+    const drillTip  = `<polygon class="bd-drill-tip"
+      points="${cx-sw},${tipY-6} ${cx+sw},${tipY-6} ${cx},${tipY+4}"/>`;
+    // Twist lines
+    const twist1 = `<path class="bd-helix" d="M${cx-sw+2} ${fluteY+4} Q${cx} ${fluteY+10} ${cx+sw-2} ${fluteY+16}"/>`;
+    const twist2 = `<path class="bd-helix" d="M${cx-sw+2} ${fluteY+14} Q${cx} ${fluteY+20} ${cx+sw-2} ${fluteY+26}"/>`;
+    return open + shankRect + drillBody + drillTip + twist1 + twist2 + close;
+  }
+
+  // ROUGHER / CHIPBREAKER (router_bit with no matching subtype, or explicit rougher)
+  // Show upcut with serrated edges
+  const flatTip = `<rect class="bd-tip-flat" x="${cx-fw}" y="${tipY}" width="${fw*2}" height="3" rx="0"/>`;
+  const roughHelix = helixUp(cx - fw + 2, cx + fw - 2, fluteY + 2, tipY - 2, 3);
+  const serrL = serrations(cx - fw, fluteY + 3, tipY - 3, 'left');
+  const serrR = serrations(cx + fw, fluteY + 3, tipY - 3, 'right');
+  return open + shankRect + taperLeft + taperRight + fluteRect + roughHelix + serrL + serrR + flatTip + close;
+}
+
+// -------------------------------------------------------------------
 // Label formatters
 // -------------------------------------------------------------------
 function formatToolTypeBadge(type, subtype) {
@@ -132,6 +293,7 @@ function renderToolRow(tool, unit) {
   const matLabel = CNCData.toolMaterialLabels[tool.material] || tool.material;
 
   tr.innerHTML = `
+    <td class="col-diagram">${renderBitDiagram(tool.type, tool.subtype)}</td>
     <td class="col-name">
       <span class="tbl-tool-name">${escapeHtml(tool.name)}</span>
     </td>
